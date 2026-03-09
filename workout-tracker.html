@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Workout">
+<meta name="theme-color" content="#080808">
+<link rel="manifest" href="./manifest.json">
+
+<!-- Apple touch icon (inline SVG as data URI) -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' fill='%23080808' rx='40'/><text x='90' y='125' font-size='96' text-anchor='middle'>💪</text></svg>">
+
+<title>Comeback Workout</title>
+<style>
+  :root {
+    --bg: #080808;
+    --surface: #101010;
+    --card: #141414;
+    --border: #1f1f1f;
+    --accent: #c8f53b;
+    --accent-dark: #8aaa20;
+    --red: #ff4a35;
+    --text: #eeeeee;
+    --muted: #555;
+    --soft: #888;
+    --font-display: 'Arial Black', 'Arial Bold', Gadget, sans-serif;
+    --font-mono: 'Courier New', Courier, monospace;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+    max-width: 480px;
+    margin: 0 auto;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── DAY NAV ── */
+  .day-nav {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .day-tab {
+    flex: 1;
+    padding: 13px 4px 11px;
+    text-align: center;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .day-tab-label {
+    font-family: var(--font-display);
+    font-size: 11px;
+    color: var(--muted);
+    display: block;
+    font-weight: 900;
+    transition: color 0.2s;
+  }
+
+  .day-tab-sub {
+    font-family: var(--font-mono);
+    font-size: 7px;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    display: block;
+    margin-top: 2px;
+    transition: color 0.2s;
+  }
+
+  .day-tab.active { border-bottom-color: var(--accent); }
+  .day-tab.active .day-tab-label,
+  .day-tab.active .day-tab-sub { color: var(--accent); }
+
+  .day-tab.done::after {
+    content: '✓';
+    position: absolute;
+    top: 5px; right: 6px;
+    font-size: 8px;
+    color: var(--accent);
+  }
+
+  /* ── HEADER ── */
+  .header { padding: 22px 20px 14px; border-bottom: 1px solid var(--border); }
+  .header-row { display: flex; align-items: flex-start; justify-content: space-between; }
+
+  .day-tag {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+
+  .workout-title {
+    font-family: var(--font-display);
+    font-size: 34px;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .workout-meta { font-size: 12px; color: var(--soft); margin-top: 5px; }
+
+  .comeback-badge {
+    display: inline-block;
+    margin-top: 7px;
+    font-family: var(--font-mono);
+    font-size: 8px;
+    letter-spacing: 1px;
+    padding: 3px 9px;
+    border-radius: 4px;
+    border: 1px solid #3a3a00;
+    background: #1a1a00;
+    color: #cccc55;
+    text-transform: uppercase;
+  }
+
+  .timer-pill { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; margin-left: 12px; }
+
+  .timer-display {
+    font-family: var(--font-mono);
+    font-size: 26px;
+    color: var(--accent);
+    font-weight: bold;
+  }
+
+  .timer-btn {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .timer-btn.running { background: var(--red); border-color: var(--red); color: #fff; }
+
+  .progress-wrap { padding: 12px 0 0; display: flex; align-items: center; gap: 12px; }
+  .progress-bar { flex: 1; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease; width: 0%; }
+  .progress-text { font-family: var(--font-mono); font-size: 11px; color: var(--soft); white-space: nowrap; }
+
+  /* ── WEEK BAR ── */
+  .week-bar { margin: 14px 20px 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; }
+  .week-bar-title { font-family: var(--font-mono); font-size: 8px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+  .week-dots { display: flex; gap: 8px; }
+  .week-dot { flex: 1; height: 4px; border-radius: 2px; background: var(--border); transition: background 0.3s; }
+  .week-dot.done { background: var(--accent); }
+  .week-dot.active { background: #7dba1c; }
+
+  /* ── SECTIONS ── */
+  .section { padding: 16px 20px 0; }
+  .section-label { font-family: var(--font-mono); font-size: 8px; letter-spacing: 4px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+
+  .info-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--soft);
+    line-height: 1.8;
+  }
+  .info-card b { color: var(--text); font-weight: 500; }
+
+  /* ── EXERCISE CARDS ── */
+  .exercise-card {
+    margin: 10px 20px 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 15px;
+    transition: border-color 0.3s, background 0.3s;
+  }
+  .exercise-card.complete { border-color: var(--accent); background: #0f1600; }
+
+  .ex-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 13px; }
+  .ex-info { flex: 1; }
+  .ex-name { font-size: 15px; font-weight: 600; line-height: 1.2; }
+  .ex-muscle { font-size: 11px; color: var(--soft); margin-top: 2px; }
+  .ex-target { font-size: 11px; color: #ccc; margin-top: 1px; font-weight: 600; }
+
+  .ex-badge {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 4px 9px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    color: var(--soft);
+    background: var(--surface);
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-left: 10px;
+    transition: all 0.2s;
+  }
+  .ex-badge.done { border-color: var(--accent); color: var(--accent); background: #1a2200; }
+
+  .sets-row { display: grid; gap: 8px; }
+  .set-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .set-label { font-family: var(--font-mono); font-size: 8px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
+
+  .rep-box {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 9px 4px 5px;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .rep-box.logged { border-color: var(--accent); background: #0d1400; }
+
+  .rep-number {
+    font-family: var(--font-display);
+    font-size: 30px;
+    font-weight: 900;
+    line-height: 1;
+    color: var(--text);
+    text-align: center;
+    user-select: none;
+    transition: color 0.2s;
+    min-width: 44px;
+  }
+  .rep-box.logged .rep-number { color: var(--accent); }
+
+  .rep-controls { display: flex; gap: 5px; }
+
+  .ctrl-btn {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.1s;
+    user-select: none;
+  }
+  .ctrl-btn:active { transform: scale(0.85); background: var(--border); }
+
+  /* ── LOG BUTTON — fixed visibility ── */
+  .log-btn {
+    width: 100%;
+    padding: 6px;
+    border-radius: 7px;
+    border: 1px solid #3a3a3a;
+    background: #1c1c1c;
+    color: #aaaaaa;          /* clearly visible grey text */
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-weight: bold;
+  }
+  .log-btn:hover { border-color: var(--accent); color: var(--accent); background: #1a2200; }
+  .log-btn.logged {
+    border-color: var(--accent);
+    color: #000000;           /* black text on bright green — max contrast */
+    background: var(--accent);
+    font-weight: 900;
+  }
+
+  /* ── EXERCISE TIMER (for timed sets) ── */
+  .ex-timer-wrap {
+    margin-top: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .ex-timer-display {
+    font-family: var(--font-mono);
+    font-size: 28px;
+    font-weight: bold;
+    color: var(--accent);
+    min-width: 70px;
+    transition: color 0.2s;
+  }
+  .ex-timer-display.warning { color: var(--red); }
+  .ex-timer-display.done-color { color: var(--accent-dark); }
+
+  .ex-timer-bar-wrap {
+    flex: 1;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .ex-timer-bar {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    transition: width 0.9s linear, background 0.3s;
+    width: 100%;
+  }
+  .ex-timer-bar.warning { background: var(--red); }
+
+  .ex-timer-btn {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .ex-timer-btn.running { background: var(--red); border-color: var(--red); color: #fff; }
+  .ex-timer-btn.finished { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 900; }
+
+  /* ── REST TOAST ── */
+  .rest-toast {
+    position: fixed;
+    bottom: calc(24px + env(safe-area-inset-bottom));
+    left: 50%;
+    transform: translateX(-50%) translateY(120px);
+    background: var(--accent);
+    color: #000;
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    padding: 12px 28px;
+    border-radius: 40px;
+    box-shadow: 0 8px 32px rgba(200,245,59,0.25);
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 100;
+    white-space: nowrap;
+  }
+  .rest-toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── SUMMARY ── */
+  .summary {
+    margin: 16px 20px 0;
+    background: #0d1400;
+    border: 1px solid var(--accent);
+    border-radius: 14px;
+    padding: 22px 20px;
+    text-align: center;
+  }
+  .summary-icon { font-size: 34px; margin-bottom: 6px; }
+  .summary-title { font-family: var(--font-display); font-size: 24px; font-weight: 900; color: var(--accent); letter-spacing: 1px; }
+  .summary-sub { font-size: 13px; color: var(--soft); margin-top: 4px; }
+  .summary-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 16px; }
+  .stat-val { font-family: var(--font-display); font-size: 26px; font-weight: 900; color: var(--text); }
+  .stat-lbl { font-family: var(--font-mono); font-size: 8px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<div class="day-nav" id="dayNav"></div>
+<div id="mainContent"></div>
+<div class="rest-toast" id="restToast">REST &nbsp;·&nbsp; <span id="restCount">90</span>s</div>
+
+<script>
+// ── PLAN ──────────────────────────────────────────────────────────────────
+// timed:true means this exercise uses a countdown timer instead of +/- reps
+const plan = [
+  {
+    day: "DAY 1", type: "PUSH", title: "PUSH DAY",
+    meta: "Chest · Shoulders · Triceps",
+    warmup: "Arm circles · Shoulder rolls · Inch worms · Light squats",
+    cooldown: "Chest stretch · Hip flexor · Child's pose",
+    exercises: [
+      { name: "Incline Push-ups",   muscle: "Chest, triceps, shoulders",  target: "3 × 10",    sets: 3, def: 10 },
+      { name: "Push-ups",           muscle: "Chest, triceps, shoulders",  target: "3 × 8",     sets: 3, def: 8  },
+      { name: "Dips (chair/table)", muscle: "Triceps, lower chest",       target: "2 × 8",     sets: 2, def: 8  },
+      { name: "Shoulder Taps",      muscle: "Shoulders, core stability",  target: "2 × 12",    sets: 2, def: 12 },
+    ]
+  },
+  {
+    day: "DAY 2", type: "PULL", title: "PULL DAY",
+    meta: "Back · Biceps · Rear Delts",
+    warmup: "Band pull-aparts · Neck rolls · Cat-cow · Scapular circles",
+    cooldown: "Bicep stretch · Lat stretch · Thread the needle",
+    exercises: [
+      { name: "Inverted Rows (under table)", muscle: "Mid-back, biceps, rear delts", target: "3 × 8",   sets: 3, def: 8 },
+      { name: "Pull-ups (or assisted)",      muscle: "Lats, biceps, rear delts",     target: "3 × 3–5", sets: 3, def: 4 },
+      { name: "Chin-ups (or negatives)",     muscle: "Biceps, lats",                 target: "2 × 3–5", sets: 2, def: 4 },
+      { name: "Towel Bicep Curls",           muscle: "Biceps",                       target: "2 × 10",  sets: 2, def: 10 },
+    ]
+  },
+  {
+    day: "DAY 3", type: "LEGS", title: "LEGS & CORE",
+    meta: "Quads · Hamstrings · Glutes · Core",
+    warmup: "Hip circles · Leg swings · Bodyweight squats × 10 · Glute bridges × 10",
+    cooldown: "Pigeon pose · Hamstring stretch · Standing quad stretch",
+    exercises: [
+      { name: "Bulgarian Split Squats",        muscle: "Quads, glutes, hamstrings",      target: "3 × 8 each",  sets: 3, def: 8  },
+      { name: "Single-leg Romanian Deadlift",  muscle: "Hamstrings, glutes, balance",    target: "3 × 8 each",  sets: 3, def: 8  },
+      { name: "Glute Bridges (slow + pause)",  muscle: "Glutes, hamstrings, lower back", target: "3 × 12",      sets: 3, def: 12 },
+      { name: "Plank",                         muscle: "Core, shoulders, glutes",        target: "3 × 30 sec",  sets: 3, def: 30, timed: true },
+      { name: "Hollow Body Hold",              muscle: "Deep core, hip flexors",         target: "2 × 20 sec",  sets: 2, def: 20, timed: true },
+    ]
+  },
+  {
+    day: "DAY 4", type: "PUSH", title: "PUSH DAY",
+    meta: "Chest · Shoulders · Triceps",
+    warmup: "Arm circles · Shoulder rolls · Inch worms · Light squats",
+    cooldown: "Chest stretch · Hip flexor · Child's pose",
+    exercises: [
+      { name: "Wide Push-ups",                    muscle: "Chest (outer), shoulders", target: "3 × 8", sets: 3, def: 8 },
+      { name: "Pike Push-ups",                    muscle: "Shoulders, triceps",       target: "3 × 8", sets: 3, def: 8 },
+      { name: "Tricep Dips",                      muscle: "Triceps, lower chest",     target: "2 × 8", sets: 2, def: 8 },
+      { name: "Decline Push-ups (feet on chair)", muscle: "Upper chest, shoulders",   target: "2 × 8", sets: 2, def: 8 },
+    ]
+  },
+  {
+    day: "DAY 5", type: "PULL+", title: "PULL + FULL BODY",
+    meta: "Back · Biceps · Core · Full Body",
+    warmup: "Band pull-aparts · Neck rolls · Cat-cow · Scapular circles",
+    cooldown: "Bicep stretch · Lat stretch · Child's pose",
+    exercises: [
+      { name: "Inverted Rows",       muscle: "Mid-back, biceps",             target: "3 × 8",    sets: 3, def: 8  },
+      { name: "Pull-ups (assisted)", muscle: "Lats, biceps, rear delts",    target: "3 × 3–5",  sets: 3, def: 4  },
+      { name: "Burpees",             muscle: "Full body, cardio",            target: "2 × 8",    sets: 2, def: 8  },
+      { name: "Mountain Climbers",   muscle: "Core, shoulders, hip flexors", target: "2 × 15",   sets: 2, def: 15 },
+      { name: "Superman Holds",      muscle: "Lower back, glutes, posterior",target: "3 × 10",   sets: 3, def: 10 },
+    ]
+  },
+];
+
+// ── STATE ─────────────────────────────────────────────────────────────────
+const dayState = plan.map(d => ({
+  reps: d.exercises.map(e => Array(e.sets).fill(e.def)),
+  logged: d.exercises.map(e => Array(e.sets).fill(false)),
+  secs: 0, running: false, interval: null,
+  // per-set exercise timers: exTimers[ei][si] = { secs, running, interval, total }
+  exTimers: d.exercises.map(e =>
+    Array(e.sets).fill(null).map(() => ({ secs: e.def, running: false, interval: null, total: e.def, done: false }))
+  ),
+}));
+
+const dow = new Date().getDay();
+let activeDay = (dow >= 1 && dow <= 5) ? dow - 1 : 0;
+
+// ── WORKOUT TIMER ─────────────────────────────────────────────────────────
+function toggleTimer() {
+  const ds = dayState[activeDay];
+  const btn = document.getElementById('timerBtn');
+  if (ds.running) {
+    clearInterval(ds.interval); ds.running = false;
+    btn.textContent = 'RESUME'; btn.classList.remove('running');
+  } else {
+    ds.running = true; btn.textContent = 'STOP'; btn.classList.add('running');
+    ds.interval = setInterval(() => {
+      ds.secs++;
+      const el = document.getElementById('timerDisplay');
+      if (el) el.textContent = fmt(ds.secs);
+    }, 1000);
+  }
+}
+
+// ── EXERCISE TIMER ────────────────────────────────────────────────────────
+function toggleExTimer(ei, si) {
+  const ds = dayState[activeDay];
+  const t = ds.exTimers[ei][si];
+
+  if (t.done) {
+    // Reset
+    t.secs = t.total; t.done = false; t.running = false;
+    clearInterval(t.interval);
+    updateExTimer(ei, si);
+    return;
+  }
+
+  if (t.running) {
+    clearInterval(t.interval); t.running = false;
+    updateExTimer(ei, si);
+  } else {
+    if (t.secs <= 0) { t.secs = t.total; t.done = false; }
+    t.running = true;
+    updateExTimer(ei, si);
+    t.interval = setInterval(() => {
+      t.secs--;
+      if (t.secs <= 0) {
+        t.secs = 0; t.running = false; t.done = true;
+        clearInterval(t.interval);
+        // Auto-log this set
+        ds.logged[ei][si] = true;
+        showRest();
+        updateExTimer(ei, si);
+        renderExercises();
+        updateProgress();
+        if (ds.logged.every(ex => ex.every(Boolean))) renderMain();
+      } else {
+        updateExTimer(ei, si);
+      }
+    }, 1000);
+  }
+}
+
+function updateExTimer(ei, si) {
+  const t = dayState[activeDay].exTimers[ei][si];
+  const disp = document.getElementById(`etd-${ei}-${si}`);
+  const bar  = document.getElementById(`etb-${ei}-${si}`);
+  const btn  = document.getElementById(`etbtn-${ei}-${si}`);
+  if (!disp) return;
+
+  disp.textContent = fmt(t.secs);
+  const pct = (t.secs / t.total) * 100;
+
+  if (t.done) {
+    disp.className = 'ex-timer-display done-color';
+    if (bar) { bar.style.width = '0%'; bar.className = 'ex-timer-bar'; }
+    if (btn) { btn.textContent = 'RESET'; btn.className = 'ex-timer-btn finished'; }
+  } else if (t.secs <= 5) {
+    disp.className = 'ex-timer-display warning';
+    if (bar) { bar.style.width = pct+'%'; bar.className = 'ex-timer-bar warning'; }
+    if (btn) { btn.textContent = t.running ? 'PAUSE' : 'GO'; btn.className = 'ex-timer-btn' + (t.running?' running':''); }
+  } else {
+    disp.className = 'ex-timer-display';
+    if (bar) { bar.style.width = pct+'%'; bar.className = 'ex-timer-bar'; }
+    if (btn) { btn.textContent = t.running ? 'PAUSE' : 'GO'; btn.className = 'ex-timer-btn' + (t.running?' running':''); }
+  }
+}
+
+// ── REST TIMER ────────────────────────────────────────────────────────────
+let restInt = null;
+function showRest() {
+  const toast = document.getElementById('restToast');
+  const cnt = document.getElementById('restCount');
+  if (restInt) { clearInterval(restInt); toast.classList.remove('show'); }
+  let t = 90; cnt.textContent = t;
+  setTimeout(() => toast.classList.add('show'), 10);
+  restInt = setInterval(() => {
+    t--; cnt.textContent = t;
+    if (t <= 0) { clearInterval(restInt); toast.classList.remove('show'); }
+  }, 1000);
+}
+
+// ── REP CONTROLS ──────────────────────────────────────────────────────────
+function changeRep(ei, si, d) {
+  dayState[activeDay].reps[ei][si] = Math.max(0, dayState[activeDay].reps[ei][si] + d);
+  const el = document.getElementById(`n${ei}-${si}`);
+  if (el) el.textContent = dayState[activeDay].reps[ei][si];
+}
+
+function logSet(ei, si) {
+  const ds = dayState[activeDay];
+  ds.logged[ei][si] = !ds.logged[ei][si];
+  if (ds.logged[ei][si]) showRest();
+  renderExercises();
+  updateProgress();
+  if (ds.logged.every(ex => ex.every(Boolean))) renderMain();
+}
+
+// ── DAY SWITCH ────────────────────────────────────────────────────────────
+function switchDay(i) {
+  const old = dayState[activeDay];
+  if (old.running) { clearInterval(old.interval); old.running = false; }
+  // Stop all exercise timers
+  old.exTimers.forEach(ex => ex.forEach(t => { if (t.running) { clearInterval(t.interval); t.running = false; } }));
+  activeDay = i;
+  renderAll();
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────
+function renderAll() { renderNav(); renderMain(); }
+
+function renderNav() {
+  document.getElementById('dayNav').innerHTML = plan.map((d, i) => {
+    const done = dayState[i].logged.every(ex => ex.every(Boolean));
+    return `<div class="day-tab ${i===activeDay?'active':''} ${done?'done':''}" onclick="switchDay(${i})">
+      <span class="day-tab-label">${d.day}</span>
+      <span class="day-tab-sub">${d.type}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderMain() {
+  const d = plan[activeDay];
+  const ds = dayState[activeDay];
+  const done = ds.logged.filter(ex => ex.every(Boolean)).length;
+  const total = d.exercises.length;
+  const allDone = done === total;
+
+  const dots = plan.map((_,i) => {
+    const d2 = dayState[i].logged.every(ex => ex.every(Boolean));
+    return `<div class="week-dot ${d2?'done':i===activeDay?'active':''}"></div>`;
+  }).join('');
+
+  let summary = '';
+  if (allDone) {
+    const totalReps = ds.reps.reduce((a,ex) => a+ex.reduce((b,r)=>b+r,0), 0);
+    const totalSets = d.exercises.reduce((a,e) => a+e.sets, 0);
+    const elapsed = ds.secs > 0 ? ` in ${Math.floor(ds.secs/60)}m ${ds.secs%60}s` : '';
+    summary = `<div class="summary">
+      <div class="summary-icon">🔥</div>
+      <div class="summary-title">SESSION DONE!</div>
+      <div class="summary-sub">Completed${elapsed}. Great work, Jan!</div>
+      <div class="summary-stats">
+        <div><div class="stat-val">${totalSets}</div><div class="stat-lbl">Sets</div></div>
+        <div><div class="stat-val">${totalReps}</div><div class="stat-lbl">Reps</div></div>
+        <div><div class="stat-val">${total}</div><div class="stat-lbl">Exercises</div></div>
+      </div>
+    </div>`;
+  }
+
+  document.getElementById('mainContent').innerHTML = `
+    <div class="header">
+      <div class="header-row">
+        <div>
+          <div class="day-tag">${d.day} · COMEBACK</div>
+          <div class="workout-title">${d.title}</div>
+          <div class="workout-meta">${d.meta}</div>
+          <div class="comeback-badge">⚡ Scaled · Build back over 3–4 weeks</div>
+        </div>
+        <div class="timer-pill">
+          <div class="timer-display" id="timerDisplay">${fmt(ds.secs)}</div>
+          <button class="timer-btn ${ds.running?'running':''}" id="timerBtn" onclick="toggleTimer()">
+            ${ds.running ? 'STOP' : ds.secs > 0 ? 'RESUME' : 'START'}
+          </button>
+        </div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-bar"><div class="progress-fill" id="pFill" style="width:${(done/total)*100}%"></div></div>
+        <div class="progress-text" id="pText">${done} / ${total} done</div>
+      </div>
+    </div>
+
+    <div class="week-bar">
+      <div class="week-bar-title">This Week</div>
+      <div class="week-dots">${dots}</div>
+    </div>
+
+    <div class="section" style="margin-top:14px;">
+      <div class="section-label">Warm-Up · 3 min</div>
+      <div class="info-card">${d.warmup.split(' · ').map(w=>`<b>${w}</b>`).join(' &nbsp;·&nbsp; ')}</div>
+    </div>
+    <div class="section" style="padding-bottom:10px;">
+      <div class="section-label">Circuit · 60–90s rest between sets</div>
+    </div>
+    <div id="exContainer"></div>
+    <div class="section" style="margin-top:12px;">
+      <div class="section-label">Cool-Down · 3 min</div>
+      <div class="info-card">${d.cooldown.split(' · ').map(w=>`<b>${w}</b>`).join(' &nbsp;·&nbsp; ')}</div>
+    </div>
+    ${summary}
+  `;
+
+  renderExercises();
+}
+
+function renderExercises() {
+  const d = plan[activeDay];
+  const ds = dayState[activeDay];
+  const c = document.getElementById('exContainer');
+  if (!c) return;
+
+  c.innerHTML = d.exercises.map((ex, ei) => {
+    const allDone = ds.logged[ei].every(Boolean);
+    const cnt = ds.logged[ei].filter(Boolean).length;
+    const cols = ex.sets === 2 ? 'grid-template-columns: repeat(2, 1fr)' : 'grid-template-columns: repeat(3, 1fr)';
+
+    const setsHtml = ds.reps[ei].map((rep, si) => {
+      const isLogged = ds.logged[ei][si];
+
+      if (ex.timed) {
+        // Timed exercise — show countdown timer per set
+        const t = ds.exTimers[ei][si];
+        const pct = (t.secs / t.total) * 100;
+        const isWarning = t.secs <= 5 && !t.done;
+        const btnText = t.done ? 'RESET' : (t.running ? 'PAUSE' : 'GO');
+        const btnClass = t.done ? 'finished' : (t.running ? 'running' : '');
+        const dispClass = t.done ? 'done-color' : (isWarning ? 'warning' : '');
+        const barClass = isWarning ? 'warning' : '';
+
+        return `<div class="set-col">
+          <div class="set-label">Set ${si+1}</div>
+          <div class="rep-box ${isLogged?'logged':''}">
+            <div class="ex-timer-wrap" style="margin:0;background:transparent;border:none;padding:6px 0 2px;flex-direction:column;gap:6px;width:100%">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%">
+                <div class="ex-timer-display ${dispClass}" id="etd-${ei}-${si}">${fmt(t.secs)}</div>
+                <button class="ex-timer-btn ${btnClass}" id="etbtn-${ei}-${si}" onclick="toggleExTimer(${ei},${si})">${btnText}</button>
+              </div>
+              <div class="ex-timer-bar-wrap">
+                <div class="ex-timer-bar ${barClass}" id="etb-${ei}-${si}" style="width:${pct}%"></div>
+              </div>
+            </div>
+          </div>
+          <button class="log-btn ${isLogged?'logged':''}" onclick="logSet(${ei},${si})">
+            ${isLogged ? '✓ Done' : 'Log Set'}
+          </button>
+        </div>`;
+      } else {
+        // Rep exercise — show +/- counter
+        return `<div class="set-col">
+          <div class="set-label">Set ${si+1}</div>
+          <div class="rep-box ${isLogged?'logged':''}">
+            <div class="rep-number" id="n${ei}-${si}">${rep}</div>
+            <div class="rep-controls">
+              <button class="ctrl-btn" onclick="changeRep(${ei},${si},-1)">−</button>
+              <button class="ctrl-btn" onclick="changeRep(${ei},${si},1)">+</button>
+            </div>
+          </div>
+          <button class="log-btn ${isLogged?'logged':''}" onclick="logSet(${ei},${si})">
+            ${isLogged ? '✓ Done' : 'Log Set'}
+          </button>
+        </div>`;
+      }
+    }).join('');
+
+    return `<div class="exercise-card ${allDone?'complete':''}">
+      <div class="ex-top">
+        <div class="ex-info">
+          <div class="ex-name">${ex.name}${ex.timed ? ' <span style="font-size:11px;color:var(--accent);font-weight:400">⏱ timed</span>' : ''}</div>
+          <div class="ex-muscle">${ex.muscle}</div>
+          <div class="ex-target">${ex.target}</div>
+        </div>
+        <div class="ex-badge ${allDone?'done':''}">${allDone ? '✓ DONE' : `${cnt}/${ex.sets}`}</div>
+      </div>
+      <div class="sets-row" style="${cols}">${setsHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+function updateProgress() {
+  const ds = dayState[activeDay];
+  const done = ds.logged.filter(ex => ex.every(Boolean)).length;
+  const total = plan[activeDay].exercises.length;
+  const f = document.getElementById('pFill');
+  const t = document.getElementById('pText');
+  if (f) f.style.width = `${(done/total)*100}%`;
+  if (t) t.textContent = `${done} / ${total} done`;
+  renderNav();
+}
+
+function fmt(s) {
+  return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+}
+
+// ── PWA SERVICE WORKER ────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+renderAll();
+</script>
+</body>
+</html>
